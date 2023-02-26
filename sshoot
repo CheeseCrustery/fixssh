@@ -21,7 +21,7 @@ end
 # show an error message and exit
 function error
 	echo ' ❌'
-	echo $argv[1]
+	echo "$argv"
 	exit 1
 end
 
@@ -93,7 +93,7 @@ end
 echo -n 'No symbolic links?'
 if test -L (dirname $keys_path)
 	or test -L $keys_path
-	error "(dirname $keys_path) and all files within must not be symbolic links"
+	error (dirname $keys_path) "and all files within must not be symbolic links"
 else
 	check
 end
