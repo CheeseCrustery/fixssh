@@ -1,0 +1,90 @@
+#!/bin/fish
+
+# check args
+if test (count $argv) -ne 1
+	echo 'Usage: sshoot [username]'
+	exit 2
+end
+set user $argv[1]
+if string match --quiet 'root' $user
+	set keys_path '/root/.ssh/authorized_keys'
+else
+	set keys_path "/home/$user/.ssh/authorized_keys"
+end
+set config_path '/etc/ssh/sshd_config'
+
+# show a checkmark
+function check
+	echo '✅'
+end
+
+# show an error message and exit
+function error
+	echo '❌'
+	echo $argv[1]
+	exit 1
+end
+
+# restart sshd
+echo 'Restarting sshd.'
+if systemctl restart sshd 2> /dev/null # suppress error messages
+	check
+else
+	error "Try running 'apt install openssh-server' and 'systemctl enable ssh'"
+end
+
+# check sshd status
+echo -n 'sshd running? '
+if systemctl status ssh | string match --quiet --entire 'Active: active (running)'
+	check
+else
+	error "Try running 'apt install openssh-server' and 'systemctl enable ssh'"
+end
+
+# check if root is allowed to log in
+if string match --quiet 'root' $user
+	echo -n 'PermitRootLogin set? '
+	if cat $config_path | string match --regex --quiet '^PermitRootLogin\s+yes'
+		check
+	else
+		error "In $config_path, set 'PermitRootLogin yes'"
+	end
+end
+
+# check if authorized_keys file path is set for user
+echo -n 'AuthorizedKeysFile entry set? '
+if cat $config_path | string match --regex --entire '^AuthorizedKeysFile' | string match --entire --quiet $keys_path
+	check
+else
+	error "In $config_path, add $keys_path to AuthorizedKeysFile"
+end
+
+# check if authorized_keys file looks correct
+function valid_lines
+	set entries 0
+	while read --line input
+		if string match --quiet --regex '^\s*$' $input # line is empty
+			or string match --quiet '#*' $input # line is comment
+			continue
+		else if string match --quiet 'ssh-rsa *' $input
+			# line with public key
+			set entries (math $entries + 1)
+		else
+			# invalid line
+			exit 1
+		end
+	end
+	if test $entries -eq 0
+		echo -n 'no pubkey entries'
+		exit 1
+	else
+		echo -n "$entries pubkey entries "
+	end
+end
+echo -n 'authorized_keys file correct? '
+if test -s $keys_path # file exists and isn't empty
+	and cat $keys_path | valid_lines
+	check
+else
+	error "Add the public key from 'ssh-keygen -y -f id_rsa' to ~/.ssh/authorized_keys"
+end
