@@ -4,9 +4,9 @@ Setting up SSH with RSA authentication seems like a straightforward process, but
 ## Installation
 For Ubuntu:
 ```
-sudo apt install curl fish # install curl to download, and fish to execute the tool
-sudo curl https://raw.githubusercontent.com/CheeseCrustery/sshoot/main/sshoot -o /usr/local/bin # download sshoot to the /usr/local/bin directory
-sudo chmod 755 /usr/local/bin/sshoot # set global execute permissions for sshoot
+sudo apt install wget fish # install wget to download, and fish to execute the tool
+sudo wget --output-document=/usr/local/bin/sshoot --quiet https://raw.githubusercontent.com/CheeseCrustery/sshoot/main/sshoot # download sshoot
+sudo chmod 755 /usr/local/bin/sshoot # set global execute permissions
 ```
 
 ## Usage
