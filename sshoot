@@ -1,4 +1,4 @@
-#!/bin/fish
+#!/usr/bin/fish
 
 # check args
 if test (count $argv) -ne 1
@@ -25,6 +25,22 @@ function error
 	exit 1
 end
 
+# check for a setting in the config file
+function check_setting
+	set key $argv[1]
+	set val $argv[2]
+	if test (count $argv) -ge 3
+		set error_msg $argv[3]
+	else
+		set error_msg "In $config_path set '$key $val'"
+	end
+	if cat $config_path | string match --regex --entire "^$key" | string match --entire --quiet $val
+		check
+	else
+		error $error_msg
+	end
+end
+
 # restart sshd
 echo -n 'Restarting sshd.'
 if systemctl restart sshd 2> /dev/null # suppress error messages
@@ -41,23 +57,23 @@ else
 	error "Try running 'apt install openssh-server' and 'systemctl enable ssh'"
 end
 
+# check if password authentication is turned off
+echo -n 'PasswordAuthentication disabled?'
+check_setting PasswordAuthentication no
+
+# check if pubkey authentication is turned on
+echo -n 'PubkeyAuthentication enabled?'
+check_setting PasswordAuthentication no
+
 # check if root is allowed to log in
 if string match --quiet 'root' $user
 	echo -n 'PermitRootLogin set?'
-	if cat $config_path | string match --regex --quiet '^PermitRootLogin\s+yes'
-		check
-	else
-		error "In $config_path set 'PermitRootLogin yes'"
-	end
+	check_setting PermitRootLogin yes
 end
 
 # check if authorized_keys file path is set for user
 echo -n 'AuthorizedKeysFile entry set?'
-if cat $config_path | string match --regex --entire '^AuthorizedKeysFile' | string match --entire --quiet $keys_path
-	check
-else
-	error "In $config_path add $keys_path to AuthorizedKeysFile"
-end
+check_setting AuthorizedKeysFile $keys_path "In $config_path add $keys_path to AuthorizedKeysFile"
 
 # check if authorized_keys file looks correct
 function valid_lines

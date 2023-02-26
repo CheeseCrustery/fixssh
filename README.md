@@ -9,5 +9,19 @@ sudo wget --output-document=/usr/local/bin/sshoot --quiet https://raw.githubuser
 sudo chmod 755 /usr/local/bin/sshoot # set global execute permissions
 ```
 
+## Setup
+```
+set new_user frogcam
+set private_key /root/id_rsa
+adduser --create-home $new_user # https://www.howtogeek.com/806104/add-a-user-to-linux/
+su $new_user
+chsh -s /usr/bin/fish # https://www.howtogeek.com/669835/how-to-change-your-default-shell-on-linux-with-chsh/
+mkdir ~/.ssh
+ssh-keygen -y -f $private_key > ~/.ssh/authorized_keys
+chmod -R 700 ~/.ssh/
+nano /etc/ssh/sshd_config
+```
+Set `PasswordAuthentication no`, `PubkeyAuthentication yes`, `AuthorizedKeysFile` and (if needed) `PermitRootLogin yes`
+
 ## Usage
 Set up SSH on the server which you want to connect to. Then, run `sshoot [username]`.
