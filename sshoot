@@ -1,26 +1,39 @@
 #!/usr/bin/fish
 
 # check args
-if test (count $argv) -ne 1
-	echo 'Usage: sshoot [username]'
+function is_user
+	cat /etc/passwd | string match --quiet --regex "^$_flag_value:"
+end
+if not argparse --max-args 1 'u/user=!is_user' 'a/ascii-only' -- $argv
+	echo 'Usage: sshoot [--user username] [--ascii-only]'
 	exit 2
 end
-set user $argv[1]
-if string match --quiet 'root' $user
-	set keys_path '/root/.ssh/authorized_keys'
-else
-	set keys_path "/home/$user/.ssh/authorized_keys"
+if not string length -q $_flag_user
+	# if user is not given, just take the current user
+	set $_flag_user $USERNAME
 end
+
+# get paths to config documents
+set keys_path (cat /etc/passwd | string match --regex --entire "^$_flag_user:" | cut --delimiter ':' --fields 6)
 set config_path '/etc/ssh/sshd_config'
+
+# get symbols
+if set --query $_flag_ascii_only
+	set sym_ok 'OK'
+	set sym_bad 'FAIL'
+else
+	set sym_ok '✅'
+	set sym_bad '❌'
+end
 
 # show a checkmark
 function check
-	echo ' ✅'
+	echo " $sym_ok"
 end
 
 # show an error message and exit
 function error
-	echo ' ❌'
+	echo " $sym_bad"
 	echo "$argv"
 	exit 1
 end
