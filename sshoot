@@ -10,7 +10,7 @@ if not argparse --max-args 1 'u/user=!is_user' 'a/ascii-only' -- $argv
 end
 if not string length -q $_flag_user
 	# if user is not given, just take the current user
-	set $_flag_user $USERNAME
+	set _flag_user $USERNAME
 end
 
 # get paths to config documents
