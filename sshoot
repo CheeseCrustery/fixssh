@@ -87,12 +87,11 @@ function valid_lines
             set entries (math $entries + 1)
         else
             # invalid line
-            exit 1
+            return 1
         end
     end
     if test $entries -eq 0
-        echo -n ' no pubkey entries'
-        exit 1
+        return 1
     else
         echo -n " $entries pubkey entries"
     end
