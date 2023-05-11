@@ -1,0 +1,154 @@
+#!/usr/bin/fish
+
+# metadata
+set fixssh_version '1.0'
+set help_prompt "fixssh version $fixssh_version\ by Jan Berndt\
+\
+DESCRIPTION:\
+This is a tool for the fish command line interpreter, version 3.6.1 or above.\
+It will check if your system is correctly configured to accept SSH connections with an RSA key.\
+fixssh gives you hits, but it will never change configuration on its own.\
+\
+OPTIONS:\
+-u or --user=USERNAME\
+	Check configuration for a specific user. Defaults to the current \$USER.\
+-a or --ascii-only\
+	Avoid using emojis in the output. Set this flag if some characters are not displayed correctly."
+
+# check args
+function is_user
+    cat /etc/passwd | string match --quiet --regex "^$_flag_value:"
+end
+if not argparse --max-args 1 'u/user=!is_user' 'a/ascii-only' 'h/help' -- $argv 2> /dev/null
+    echo $help_prompt
+    exit 2
+end
+if not test -n "$_flag_user"
+    # if user is not given, just take the current user
+    set _flag_user $USER
+end
+
+# get paths to config documents
+set home (cat /etc/passwd | string match --regex --entire "^$_flag_user:" | cut --delimiter ':' --fields 6)
+set authorized_keys "$home/.ssh/authorized_keys"
+set sshd_config '/etc/ssh/sshd_config'
+
+# get symbols
+if test -n "$_flag_ascii_only"
+    set sym_ok 'PASS'
+    set sym_bad 'FAIL'
+else
+    set sym_ok '✅'
+    set sym_bad '❌'
+end
+
+# show a passed test
+function check
+    echo "$sym_ok $test"
+end
+
+# show a failed test
+function error
+	echo "$sym_bad $test"
+    echo \t$argv
+end
+
+# check for a setting in the config file
+function check_setting -a key val error_msg
+    if not test -n "$error_msg"
+        set error_msg "In '$sshd_config' set '$key $val'"
+    end
+    if cat $sshd_config 2> /dev/null | string match --regex --entire "^$key" | string match --entire --quiet $val
+        check
+    else
+        error $error_msg
+    end
+end
+
+# check sshd status
+set test 'sshd running?'
+if systemctl status ssh 2> /dev/null | string match --quiet --entire 'Active: active (running)'
+    check
+else
+    error "Try running 'apt install openssh-server' and 'systemctl enable ssh'"
+end
+
+# check if password authentication is turned off
+set test 'PasswordAuthentication disabled?'
+check_setting PasswordAuthentication no
+
+# check if pubkey authentication is turned on
+set test 'PubkeyAuthentication enabled?'
+check_setting PubkeyAuthentication yes
+
+# check if root is allowed to log in
+if string match --quiet 'root' $_flag_user
+    set test 'PermitRootLogin set?'
+    check_setting PermitRootLogin yes
+end
+
+# check if authorized_keys file path is set for user
+set test 'AuthorizedKeysFile entry set?'
+check_setting AuthorizedKeysFile "$authorized_keys" "In '$sshd_config' add '$authorized_keys' to AuthorizedKeysFile"
+
+# check if authorized_keys file looks correct
+function valid_lines
+    set entries 0
+    while read --line input
+        if string match --quiet --regex '^\s*$' $input # line is empty
+            or string match --quiet '#*' $input # line is comment
+            continue
+        else if string match --quiet 'ssh-rsa *' $input
+            # line with public key
+            set entries (math $entries + 1)
+        else
+            # invalid line
+            return 1
+        end
+    end
+    if test $entries -eq 0
+        return 1
+    end
+end
+set test 'authorized_keys file correct?'
+if test -s $authorized_keys # file exists and isn't empty
+    and cat $authorized_keys | valid_lines
+    check
+else
+    error "On your the client, execute 'ssh-keygen -y -f ~/.ssh/id_rsa' and copy the result to $authorized_keys on this server"
+end
+
+# check that the .ssh folder is not a symbolic link
+set test 'No symbolic links?'
+if test -L (dirname $authorized_keys)
+    or test -L $authorized_keys
+    error (dirname $authorized_keys) "and all files within must not be symbolic links"
+else
+    check
+end
+
+# check if a file/directory matches the permissions and user
+function check_permissions -a file_name permissions user
+    string match --quiet --regex "^.$permissions \d+ $_flag_user $flag_user" -- (ls -ld $file_name 2> /dev/null) # https://github.com/fish-shell/fish-shell/issues/4959
+end
+
+# check authorized_keys file permissions
+# https://superuser.com/questions/215504/permissions-on-private-key-in-ssh-folder
+set test 'authorized_keys permissions correct?'
+if check_permissions $authorized_keys 'rw-r--r--' $_flag_user
+    check
+else
+    error "chown $_flag_user:$_flag_user $authorized_keys; chmod 644 $authorized_keys"
+end
+
+# check .ssh directory permissions
+set test '.ssh directory permissions correct?'
+set ssh_folder (dirname $authorized_keys)
+if check_permissions $ssh_folder 'rwx------' $_flag_user
+    check
+else
+    error "chown $_flag_user:$_flag_user $ssh_folder; chmod 700 $ssh_folder"
+end
+
+echo
+echo 'If everything looks OK, execute \'systemctl restart sshd\' and try to connect again.'
