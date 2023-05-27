@@ -1,25 +1,37 @@
 #!/usr/bin/fish
 
+# this script only works on fish >= 3.6.1
+set min_version 3 6 1
+set curr_version (string split . $version)
+for i in (seq 3)
+    if test $curr_version[$i] -gt $min_version[$i]
+        break
+    else if test $curr_version[$i] -lt $min_version[$i]
+        echo 'At least fish version 3.6.1 is required to run'
+        exit 1
+    end
+end
+
 # metadata
 set fixssh_version '1.0'
-set help_prompt "fixssh version $fixssh_version\ by Jan Berndt\
-\
-DESCRIPTION:\
-This is a tool for the fish command line interpreter, version 3.6.1 or above.\
-It will check if your system is correctly configured to accept SSH connections with an RSA key.\
-fixssh gives you hits, but it will never change configuration on its own.\
-\
-OPTIONS:\
--u or --user=USERNAME\
-	Check configuration for a specific user. Defaults to the current \$USER.\
--a or --ascii-only\
+set help_prompt "fixssh version $fixssh_version\ by Jan Berndt
+
+DESCRIPTION:
+This is a tool for the fish command line interpreter, version 3.6.1 or above.
+It will check if your system is correctly configured to accept SSH connections with an RSA key.
+fixssh gives you hits, but it will never change configuration on its own.
+
+OPTIONS:
+-u or --user=USERNAME
+	Check configuration for a specific user. Defaults to the current \$USER.
+-a or --ascii-only
 	Avoid using emojis in the output. Set this flag if some characters are not displayed correctly."
 
 # check args
 function is_user
     cat /etc/passwd | string match --quiet --regex "^$_flag_value:"
 end
-if not argparse --max-args 1 'u/user=!is_user' 'a/ascii-only' 'h/help' -- $argv 2> /dev/null
+if not argparse --max-args 0 'u/user=!is_user' 'a/ascii-only' 'h/help' -- $argv 2> /dev/null
     echo $help_prompt
     exit 2
 end

@@ -12,4 +12,4 @@ sudo chmod 755 /usr/local/bin/fixssh # set global execute permissions
 ```
 
 ## Usage
-Just run `fixssh [--user=USER] [--ascii-only]`. The tool will give you instructions for everything else.
+Just run `fixssh [--user USER] [--ascii-only]`. The tool will give you instructions for everything else.
