@@ -141,7 +141,7 @@ end
 
 # check if a file/directory matches the permissions and user
 function check_permissions -a file_name permissions user
-    string match --quiet --regex "^.$permissions \d+ $_flag_user $flag_user" -- (ls -ld $file_name 2> /dev/null) # https://github.com/fish-shell/fish-shell/issues/4959
+    string match --quiet --regex "^.$permissions \d+ $user $user" -- (ls -ld $file_name 2> /dev/null) # https://github.com/fish-shell/fish-shell/issues/4959
 end
 
 # check authorized_keys file permissions
