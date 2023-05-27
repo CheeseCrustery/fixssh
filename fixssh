@@ -45,6 +45,12 @@ set home (cat /etc/passwd | string match --regex --entire "^$_flag_user:" | cut 
 set authorized_keys "$home/.ssh/authorized_keys"
 set sshd_config '/etc/ssh/sshd_config'
 
+# check if we can read config documents
+if not test -r $authorized_keys
+    echo "File $authorized_keys is not accessible"
+    exit 1
+end
+
 # get symbols
 if test -n "$_flag_ascii_only"
     set sym_ok 'PASS'
