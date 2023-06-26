@@ -44,6 +44,7 @@ end
 set home (cat /etc/passwd | string match --regex --entire "^$_flag_user:" | cut --delimiter ':' --fields 6)
 set authorized_keys "$home/.ssh/authorized_keys"
 set sshd_config '/etc/ssh/sshd_config'
+set group (id -gn $_flag_user)
 
 # check if we can read config documents
 if not test -r $authorized_keys
@@ -146,26 +147,26 @@ else
 end
 
 # check if a file/directory matches the permissions and user
-function check_permissions -a file_name permissions user
-    string match --quiet --regex "^.$permissions \d+ $user $user" -- (ls -ld $file_name 2> /dev/null) # https://github.com/fish-shell/fish-shell/issues/4959
+function check_permissions -a file_name permissions user group
+    string match --quiet --regex "^.$permissions \d+ $user $group" -- (ls -ld $file_name 2> /dev/null) # https://github.com/fish-shell/fish-shell/issues/4959
 end
 
 # check authorized_keys file permissions
 # https://superuser.com/questions/215504/permissions-on-private-key-in-ssh-folder
 set test 'authorized_keys permissions correct?'
-if check_permissions $authorized_keys 'rw-r--r--' $_flag_user
+if check_permissions $authorized_keys 'rw-r--r--' $_flag_user $group
     check
 else
-    error "chown $_flag_user:$_flag_user $authorized_keys; chmod 644 $authorized_keys"
+    error "chown $_flag_user:$group $authorized_keys; chmod 644 $authorized_keys"
 end
 
 # check .ssh directory permissions
 set test '.ssh directory permissions correct?'
 set ssh_folder (dirname $authorized_keys)
-if check_permissions $ssh_folder 'rwx------' $_flag_user
+if check_permissions $ssh_folder 'rwx------' $_flag_user $group
     check
 else
-    error "chown $_flag_user:$_flag_user $ssh_folder; chmod 700 $ssh_folder"
+    error "chown $_flag_user:$group $ssh_folder; chmod 700 $ssh_folder"
 end
 
 echo
